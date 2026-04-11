@@ -15,6 +15,7 @@ import {
 } from "openclaw/plugin-sdk/provider-stream-family";
 import { buildOpenrouterImageGenerationProvider } from "./image-generation-provider.js";
 import { openrouterMediaUnderstandingProvider } from "./media-understanding-provider.js";
+import { preloadModelCatalog } from "./model-catalog.js";
 import { buildOpenrouterMusicGenerationProvider } from "./music-generation-provider.js";
 import { applyOpenrouterConfig, OPENROUTER_DEFAULT_MODEL_REF } from "./onboard.js";
 import { buildOpenrouterProvider } from "./provider-catalog.js";
@@ -120,5 +121,9 @@ export default definePluginEntry({
     api.registerVideoGenerationProvider(buildOpenrouterVideoGenerationProvider());
     api.registerMusicGenerationProvider(buildOpenrouterMusicGenerationProvider());
     api.registerSpeechProvider(buildOpenrouterSpeechProvider());
+
+    // Pre-warm the model catalog in the background so the UI shows
+    // available models without blocking plugin registration.
+    void preloadModelCatalog();
   },
 });

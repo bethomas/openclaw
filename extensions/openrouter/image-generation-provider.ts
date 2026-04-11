@@ -11,13 +11,10 @@ import {
   resolveProviderHttpRequestConfig,
 } from "openclaw/plugin-sdk/provider-http";
 import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import { getImageModels } from "./model-catalog.js";
 import { OPENROUTER_BASE_URL, resolveConfiguredBaseUrl } from "./openrouter-config.js";
+
 const DEFAULT_OPENROUTER_IMAGE_MODEL = "google/gemini-2.5-flash-image";
-const OPENROUTER_IMAGE_MODELS = [
-  "google/gemini-2.5-flash-image",
-  "google/gemini-3.1-flash-image-preview",
-  "black-forest-labs/flux.2-pro",
-] as const;
 const OPENROUTER_IMAGE_ASPECT_RATIOS = [
   "1:1",
   "2:3",
@@ -82,7 +79,9 @@ export function buildOpenrouterImageGenerationProvider(): ImageGenerationProvide
     id: "openrouter",
     label: "OpenRouter",
     defaultModel: DEFAULT_OPENROUTER_IMAGE_MODEL,
-    models: [...OPENROUTER_IMAGE_MODELS],
+    get models() {
+      return getImageModels();
+    },
     isConfigured: ({ agentDir }) =>
       isProviderApiKeyConfigured({
         provider: "openrouter",

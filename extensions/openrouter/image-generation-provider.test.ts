@@ -45,8 +45,8 @@ describe("openrouter image generation provider", () => {
     expect(provider.id).toBe("openrouter");
     expect(provider.label).toBe("OpenRouter");
     expect(provider.defaultModel).toBe("google/gemini-2.5-flash-image");
+    // Default fallback models are returned when the catalog hasn't been fetched.
     expect(provider.models).toContain("google/gemini-2.5-flash-image");
-    expect(provider.models).toContain("black-forest-labs/flux.2-pro");
     expect(provider.capabilities.generate.supportsAspectRatio).toBe(true);
     expect(provider.capabilities.generate.supportsResolution).toBe(true);
     expect(provider.capabilities.edit.enabled).toBe(false);

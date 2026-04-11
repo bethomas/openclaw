@@ -12,7 +12,9 @@ import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
 import { OPENROUTER_BASE_URL, resolveConfiguredBaseUrl } from "./openrouter-config.js";
 import { collectStreamedAudio } from "./streaming-audio.js";
 
-const OPENROUTER_SPEECH_MODELS = [
+import { getSpeechModels } from "./model-catalog.js";
+
+const OPENROUTER_SPEECH_MODELS_FALLBACK = [
   "openai/gpt-audio",
   "openai/gpt-audio-mini",
   "openai/gpt-4o-audio-preview",
@@ -45,7 +47,7 @@ function isValidVoice(voice: string): boolean {
 }
 
 function isValidModel(model: string): boolean {
-  return (OPENROUTER_SPEECH_MODELS as readonly string[]).includes(model);
+  return getSpeechModels().includes(model);
 }
 
 function normalizeRawConfig(rawConfig: Record<string, unknown>): OpenRouterSpeechConfig {
@@ -134,7 +136,9 @@ export function buildOpenrouterSpeechProvider(): SpeechProviderPlugin {
   return {
     id: "openrouter",
     label: "OpenRouter",
-    models: [...OPENROUTER_SPEECH_MODELS],
+    get models() {
+      return getSpeechModels();
+    },
     voices: [...OPENROUTER_SPEECH_VOICES],
     resolveConfig: ({ rawConfig }): SpeechProviderConfig => normalizeRawConfig(rawConfig),
     parseDirectiveToken,
