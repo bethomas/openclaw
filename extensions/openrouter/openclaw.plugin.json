@@ -21,7 +21,11 @@
     }
   ],
   "contracts": {
-    "mediaUnderstandingProviders": ["openrouter"]
+    "mediaUnderstandingProviders": ["openrouter"],
+    "imageGenerationProviders": ["openrouter"],
+    "videoGenerationProviders": ["openrouter"],
+    "musicGenerationProviders": ["openrouter"],
+    "speechProviders": ["openrouter"]
   },
   "configSchema": {
     "type": "object",

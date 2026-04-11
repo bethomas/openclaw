@@ -1,0 +1,213 @@
+import type {
+  SpeechDirectiveTokenParseContext,
+  SpeechProviderConfig,
+  SpeechProviderPlugin,
+} from "openclaw/plugin-sdk/speech";
+import {
+  assertOkOrThrowHttpError,
+  fetchWithTimeoutGuarded,
+  resolveProviderHttpRequestConfig,
+} from "openclaw/plugin-sdk/provider-http";
+import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import { OPENROUTER_BASE_URL, resolveConfiguredBaseUrl } from "./openrouter-config.js";
+import { collectStreamedAudio } from "./streaming-audio.js";
+
+const OPENROUTER_SPEECH_MODELS = [
+  "openai/gpt-audio",
+  "openai/gpt-audio-mini",
+  "openai/gpt-4o-audio-preview",
+] as const;
+const OPENROUTER_SPEECH_VOICES = [
+  "alloy",
+  "echo",
+  "fable",
+  "onyx",
+  "nova",
+  "shimmer",
+] as const;
+const DEFAULT_TIMEOUT_MS = 60_000;
+
+type OpenRouterSpeechConfig = {
+  apiKey?: string;
+  baseUrl?: string;
+  model?: string;
+  voice?: string;
+  format?: string;
+};
+
+type OpenRouterSpeechOverrides = {
+  model?: string;
+  voice?: string;
+};
+
+function isValidVoice(voice: string): boolean {
+  return (OPENROUTER_SPEECH_VOICES as readonly string[]).includes(voice);
+}
+
+function isValidModel(model: string): boolean {
+  return (OPENROUTER_SPEECH_MODELS as readonly string[]).includes(model);
+}
+
+function normalizeRawConfig(rawConfig: Record<string, unknown>): OpenRouterSpeechConfig {
+  const providers =
+    rawConfig.providers && typeof rawConfig.providers === "object"
+      ? (rawConfig.providers as Record<string, unknown>)
+      : undefined;
+  const raw =
+    providers?.openrouter && typeof providers.openrouter === "object"
+      ? (providers.openrouter as Record<string, unknown>)
+      : {};
+  return {
+    apiKey: normalizeOptionalString(raw.apiKey),
+    baseUrl: normalizeOptionalString(raw.baseUrl),
+    model: normalizeOptionalString(raw.model),
+    voice: normalizeOptionalString(raw.voice),
+    format: normalizeOptionalString(raw.format),
+  };
+}
+
+function readConfig(providerConfig: Record<string, unknown>): OpenRouterSpeechConfig {
+  return {
+    apiKey: normalizeOptionalString(providerConfig.apiKey),
+    baseUrl: normalizeOptionalString(providerConfig.baseUrl),
+    model: normalizeOptionalString(providerConfig.model),
+    voice: normalizeOptionalString(providerConfig.voice),
+    format: normalizeOptionalString(providerConfig.format),
+  };
+}
+
+function readOverrides(
+  overrides: Record<string, unknown> | undefined,
+): OpenRouterSpeechOverrides {
+  if (!overrides) {
+    return {};
+  }
+  return {
+    model: normalizeOptionalString(overrides.model),
+    voice: normalizeOptionalString(overrides.voice),
+  };
+}
+
+function resolveResponseFormat(
+  target: "audio-file" | "voice-note",
+  configuredFormat?: string,
+): { format: string; mimeType: string; fileExtension: string } {
+  if (configuredFormat === "wav") {
+    return { format: "wav", mimeType: "audio/wav", fileExtension: ".wav" };
+  }
+  if (configuredFormat === "opus" || target === "voice-note") {
+    return { format: "opus", mimeType: "audio/ogg", fileExtension: ".opus" };
+  }
+  return { format: "mp3", mimeType: "audio/mpeg", fileExtension: ".mp3" };
+}
+
+function parseDirectiveToken(ctx: SpeechDirectiveTokenParseContext): {
+  handled: boolean;
+  overrides?: Record<string, unknown>;
+  warnings?: string[];
+} {
+  switch (ctx.key) {
+    case "voice":
+    case "openrouter_voice":
+      if (!ctx.policy.allowVoice) {
+        return { handled: true };
+      }
+      if (!isValidVoice(ctx.value)) {
+        return { handled: true, warnings: [`invalid OpenRouter voice "${ctx.value}"`] };
+      }
+      return { handled: true, overrides: { voice: ctx.value } };
+    case "model":
+    case "openrouter_model":
+      if (!ctx.policy.allowModelId) {
+        return { handled: true };
+      }
+      if (!isValidModel(ctx.value)) {
+        return { handled: false };
+      }
+      return { handled: true, overrides: { model: ctx.value } };
+    default:
+      return { handled: false };
+  }
+}
+
+export function buildOpenrouterSpeechProvider(): SpeechProviderPlugin {
+  return {
+    id: "openrouter",
+    label: "OpenRouter",
+    models: [...OPENROUTER_SPEECH_MODELS],
+    voices: [...OPENROUTER_SPEECH_VOICES],
+    resolveConfig: ({ rawConfig }): SpeechProviderConfig => normalizeRawConfig(rawConfig),
+    parseDirectiveToken,
+    listVoices: async () =>
+      OPENROUTER_SPEECH_VOICES.map((voice) => ({ id: voice, name: voice })),
+    isConfigured: ({ providerConfig }) => {
+      const config = readConfig(providerConfig);
+      return Boolean(config.apiKey || process.env.OPENROUTER_API_KEY);
+    },
+    async synthesize(req) {
+      const config = readConfig(req.providerConfig);
+      const apiKey = config.apiKey || process.env.OPENROUTER_API_KEY;
+      if (!apiKey) {
+        throw new Error("OpenRouter API key missing for speech synthesis");
+      }
+
+      const { baseUrl, headers, dispatcherPolicy } = resolveProviderHttpRequestConfig({
+        baseUrl: resolveConfiguredBaseUrl(req.cfg) ?? config.baseUrl,
+        defaultBaseUrl: OPENROUTER_BASE_URL,
+        allowPrivateNetwork: false,
+        defaultHeaders: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        provider: "openrouter",
+        capability: "audio",
+        transport: "http",
+      });
+
+      const overrides = readOverrides(req.providerOverrides);
+      const model = overrides.model ?? config.model ?? "openai/gpt-audio-mini";
+      const voice = overrides.voice ?? config.voice ?? "alloy";
+      const { format, mimeType, fileExtension } = resolveResponseFormat(
+        req.target,
+        config.format,
+      );
+
+      const requestHeaders = new Headers(headers);
+      requestHeaders.set("Content-Type", "application/json");
+      const { response, release } = await fetchWithTimeoutGuarded(
+        `${baseUrl}/chat/completions`,
+        {
+          method: "POST",
+          headers: requestHeaders,
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: req.text }],
+            modalities: ["text", "audio"],
+            audio: { voice, format },
+            stream: true,
+          }),
+        },
+        req.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        fetch,
+        { dispatcherPolicy, auditContext: "openrouter-speech-synthesize" },
+      );
+
+      try {
+        await assertOkOrThrowHttpError(response, "OpenRouter speech synthesis failed");
+
+        const { audioBuffer } = await collectStreamedAudio(response);
+        if (audioBuffer.length === 0) {
+          throw new Error("OpenRouter speech synthesis response missing audio data");
+        }
+
+        return {
+          audioBuffer,
+          outputFormat: mimeType,
+          fileExtension,
+          voiceCompatible: req.target === "voice-note" && format === "opus",
+        };
+      } finally {
+        await release();
+      }
+    },
+  };
+}

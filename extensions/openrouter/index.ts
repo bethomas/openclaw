@@ -13,10 +13,14 @@ import {
   getOpenRouterModelCapabilities,
   loadOpenRouterModelCapabilities,
 } from "openclaw/plugin-sdk/provider-stream-family";
+import { buildOpenrouterImageGenerationProvider } from "./image-generation-provider.js";
 import { openrouterMediaUnderstandingProvider } from "./media-understanding-provider.js";
+import { buildOpenrouterMusicGenerationProvider } from "./music-generation-provider.js";
 import { applyOpenrouterConfig, OPENROUTER_DEFAULT_MODEL_REF } from "./onboard.js";
 import { buildOpenrouterProvider } from "./provider-catalog.js";
+import { buildOpenrouterSpeechProvider } from "./speech-provider.js";
 import { wrapOpenRouterProviderStream } from "./stream.js";
+import { buildOpenrouterVideoGenerationProvider } from "./video-generation-provider.js";
 
 const PROVIDER_ID = "openrouter";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
@@ -112,5 +116,9 @@ export default definePluginEntry({
       isCacheTtlEligible: (ctx) => isOpenRouterCacheTtlModel(ctx.modelId),
     });
     api.registerMediaUnderstandingProvider(openrouterMediaUnderstandingProvider);
+    api.registerImageGenerationProvider(buildOpenrouterImageGenerationProvider());
+    api.registerVideoGenerationProvider(buildOpenrouterVideoGenerationProvider());
+    api.registerMusicGenerationProvider(buildOpenrouterMusicGenerationProvider());
+    api.registerSpeechProvider(buildOpenrouterSpeechProvider());
   },
 });
