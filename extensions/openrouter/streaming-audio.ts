@@ -87,9 +87,13 @@ export async function collectStreamedAudio(
     }
   }
 
-  // Flush any remaining data in the buffer that wasn't terminated by a newline.
-  if (!reachedDone && buffer.trim()) {
-    parseSseLine(buffer, audioBuffers, transcriptParts);
+  // Flush the TextDecoder's internal buffer (incomplete multibyte sequences)
+  // and parse any remaining SSE data not terminated by a newline.
+  if (!reachedDone) {
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      parseSseLine(buffer, audioBuffers, transcriptParts);
+    }
   }
 
   return {

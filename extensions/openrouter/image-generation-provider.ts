@@ -58,10 +58,23 @@ function extractBase64FromDataUrl(dataUrl: string): { buffer: Buffer; mimeType: 
 }
 
 function resolveFileExtension(mimeType: string): string {
-  if (mimeType.includes("jpeg")) return "jpg";
-  if (mimeType.includes("webp")) return "webp";
-  if (mimeType.includes("gif")) return "gif";
-  return "png";
+  switch (mimeType) {
+    case "image/jpeg":
+    case "image/jpg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    case "image/gif":
+      return "gif";
+    case "image/png":
+      return "png";
+    default: {
+      // Derive extension from MIME subtype for unknown formats (e.g. image/avif -> avif).
+      const subtype = mimeType.split("/")[1]?.split(";")[0]?.trim();
+      if (subtype && /^[a-z0-9+-]+$/u.test(subtype)) return subtype;
+      return "png";
+    }
+  }
 }
 
 export function buildOpenrouterImageGenerationProvider(): ImageGenerationProvider {

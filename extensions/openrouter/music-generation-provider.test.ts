@@ -137,6 +137,20 @@ describe("openrouter music generation provider", () => {
     expect(messages[0]?.content).toContain("La la la");
   });
 
+  it("rejects instrumental with lyrics", async () => {
+    const provider = buildOpenrouterMusicGenerationProvider();
+    await expect(
+      provider.generateMusic({
+        provider: "openrouter",
+        model: "google/lyria-3-clip-preview",
+        prompt: "A song",
+        cfg: {},
+        instrumental: true,
+        lyrics: "La la la",
+      }),
+    ).rejects.toThrow("cannot combine lyrics with instrumental");
+  });
+
   it("requests wav format when specified", async () => {
     mockGuardedSseResponse([{ data: Buffer.from("wav-data").toString("base64") }]);
 

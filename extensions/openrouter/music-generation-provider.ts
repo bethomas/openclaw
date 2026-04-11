@@ -22,8 +22,11 @@ const OPENROUTER_MUSIC_MODELS = [
 const DEFAULT_TIMEOUT_MS = 120_000;
 
 function buildMusicPrompt(req: MusicGenerationRequest): string {
-  const parts = [req.prompt.trim()];
   const lyrics = normalizeOptionalString(req.lyrics);
+  if (req.instrumental === true && lyrics) {
+    throw new Error("OpenRouter music generation cannot combine lyrics with instrumental mode");
+  }
+  const parts = [req.prompt.trim()];
   if (req.instrumental === true) {
     parts.push("Instrumental only. No vocals, no sung lyrics, no spoken word.");
   }
