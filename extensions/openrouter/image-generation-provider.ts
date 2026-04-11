@@ -175,10 +175,14 @@ export function buildOpenrouterImageGenerationProvider(): ImageGenerationProvide
             if (!parsed) {
               return null;
             }
+            const mimeType = parsed.mimeType.toLowerCase();
+            if (!mimeType.startsWith("image/")) {
+              return null;
+            }
             return {
               buffer: parsed.buffer,
-              mimeType: parsed.mimeType,
-              fileName: `image-${index + 1}.${resolveFileExtension(parsed.mimeType)}`,
+              mimeType,
+              fileName: `image-${index + 1}.${resolveFileExtension(mimeType)}`,
             };
           })
           .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
