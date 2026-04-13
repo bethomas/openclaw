@@ -79,8 +79,7 @@ describe("openrouter music generation provider", () => {
     expect(provider.id).toBe("openrouter");
     expect(provider.label).toBe("OpenRouter");
     expect(provider.defaultModel).toBe("google/lyria-3-clip-preview");
-    expect(provider.models).toContain("google/lyria-3-clip-preview");
-    expect(provider.models).toContain("google/lyria-3-pro-preview");
+    expect(provider.models).toContain("google/lyria-3-clip-preview"); // fallback model
     expect(provider.capabilities.generate?.maxTracks).toBe(1);
     expect(provider.capabilities.generate?.supportsLyrics).toBe(true);
     expect(provider.capabilities.generate?.supportsInstrumental).toBe(true);

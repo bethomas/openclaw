@@ -11,14 +11,11 @@ import {
   resolveProviderHttpRequestConfig,
 } from "openclaw/plugin-sdk/provider-http";
 import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import { getMusicModels } from "./model-catalog.js";
 import { OPENROUTER_BASE_URL, resolveConfiguredBaseUrl } from "./openrouter-config.js";
 import { collectStreamedAudio } from "./streaming-audio.js";
 
 const DEFAULT_OPENROUTER_MUSIC_MODEL = "google/lyria-3-clip-preview";
-const OPENROUTER_MUSIC_MODELS = [
-  "google/lyria-3-clip-preview",
-  "google/lyria-3-pro-preview",
-] as const;
 const DEFAULT_TIMEOUT_MS = 120_000;
 
 function buildMusicPrompt(req: MusicGenerationRequest): string {
@@ -41,7 +38,9 @@ export function buildOpenrouterMusicGenerationProvider(): MusicGenerationProvide
     id: "openrouter",
     label: "OpenRouter",
     defaultModel: DEFAULT_OPENROUTER_MUSIC_MODEL,
-    models: [...OPENROUTER_MUSIC_MODELS],
+    get models() {
+      return getMusicModels();
+    },
     isConfigured: ({ agentDir }) =>
       isProviderApiKeyConfigured({
         provider: "openrouter",

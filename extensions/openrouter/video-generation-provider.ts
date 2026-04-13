@@ -15,9 +15,10 @@ import {
 } from "openclaw/plugin-sdk/provider-http";
 import type { PinnedDispatcherPolicy } from "openclaw/plugin-sdk/infra-runtime";
 import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
+import { getVideoModels } from "./model-catalog.js";
 import { OPENROUTER_BASE_URL, resolveConfiguredBaseUrl } from "./openrouter-config.js";
+
 const DEFAULT_OPENROUTER_VIDEO_MODEL = "google/veo-3.1";
-const OPENROUTER_VIDEO_MODELS = ["google/veo-3.1"] as const;
 const POLL_INTERVAL_MS = 5_000;
 const MAX_POLL_ATTEMPTS = 120;
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -171,7 +172,9 @@ export function buildOpenrouterVideoGenerationProvider(): VideoGenerationProvide
     id: "openrouter",
     label: "OpenRouter",
     defaultModel: DEFAULT_OPENROUTER_VIDEO_MODEL,
-    models: [...OPENROUTER_VIDEO_MODELS],
+    get models() {
+      return getVideoModels();
+    },
     isConfigured: ({ agentDir }) =>
       isProviderApiKeyConfigured({
         provider: "openrouter",

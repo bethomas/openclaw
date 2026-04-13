@@ -311,15 +311,16 @@ describe("openrouter speech provider", () => {
     ).toEqual({ handled: true, overrides: { model: "openai/gpt-audio" } });
   });
 
-  it("does not handle unknown model in directive token", () => {
+  it("accepts unknown model in directive token with warning", () => {
     const provider = buildOpenrouterSpeechProvider();
-    expect(
-      provider.parseDirectiveToken?.({
-        key: "model",
-        value: "unknown/model",
-        policy: { allowModelId: true },
-      } as never),
-    ).toEqual({ handled: false });
+    const result = provider.parseDirectiveToken?.({
+      key: "model",
+      value: "unknown/model",
+      policy: { allowModelId: true },
+    } as never);
+
+    expect(result).toMatchObject({ handled: true, overrides: { model: "unknown/model" } });
+    expect(result?.warnings).toContain('unverified OpenRouter model "unknown/model"');
   });
 
   it("ignores voice directive when policy disallows it", () => {

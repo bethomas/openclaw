@@ -71,7 +71,7 @@ describe("openrouter video generation provider", () => {
     expect(provider.id).toBe("openrouter");
     expect(provider.label).toBe("OpenRouter");
     expect(provider.defaultModel).toBe("google/veo-3.1");
-    expect(provider.models).toContain("google/veo-3.1");
+    expect(provider.models).toContain("google/veo-3.1"); // fallback model
     expect(provider.capabilities.generate?.supportsAspectRatio).toBe(true);
     expect(provider.capabilities.generate?.supportsAudio).toBe(true);
     expect(provider.capabilities.imageToVideo?.enabled).toBe(true);
