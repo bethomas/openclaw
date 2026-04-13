@@ -123,8 +123,14 @@ function parseDirectiveToken(ctx: SpeechDirectiveTokenParseContext): {
       if (!ctx.policy.allowModelId) {
         return { handled: true };
       }
+      // Accept the model even if not in the current catalog (catalog may be
+      // stale during warm-up); warn so the user knows it wasn't verified.
       if (!isValidModel(ctx.value)) {
-        return { handled: false };
+        return {
+          handled: true,
+          overrides: { model: ctx.value },
+          warnings: [`unverified OpenRouter model "${ctx.value}"`],
+        };
       }
       return { handled: true, overrides: { model: ctx.value } };
     default:

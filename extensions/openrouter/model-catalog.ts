@@ -1,3 +1,7 @@
+import {
+  fetchWithTimeoutGuarded,
+  resolveProviderHttpRequestConfig,
+} from "openclaw/plugin-sdk/provider-http";
 import { normalizeOptionalString } from "openclaw/plugin-sdk/text-runtime";
 import { OPENROUTER_BASE_URL } from "./openrouter-config.js";
 
@@ -27,19 +31,49 @@ function isStale(entry: CachedModelList | undefined): boolean {
   return Date.now() - entry.fetchedAt > CACHE_TTL_MS;
 }
 
-async function fetchModelsFromApi(
-  baseUrl: string,
-  endpoint: string,
-  timeoutMs: number,
-): Promise<string[]> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+function getCacheKey(baseUrl: string, category: string): string {
+  return `${baseUrl}::${category}`;
+}
+
+function resolveGuardedConfig(baseUrl: string) {
+  return resolveProviderHttpRequestConfig({
+    defaultBaseUrl: baseUrl,
+    allowPrivateNetwork: false,
+    defaultHeaders: {},
+    provider: "openrouter",
+    capability: "other",
+    transport: "http",
+  });
+}
+
+async function fetchGuarded(url: string, baseUrl: string): Promise<Response | null> {
+  const { headers, dispatcherPolicy } = resolveGuardedConfig(baseUrl);
   try {
-    const response = await fetch(`${baseUrl}${endpoint}`, {
-      method: "GET",
-      signal: controller.signal,
-    });
-    if (!response.ok) return [];
+    const { response, release } = await fetchWithTimeoutGuarded(
+      url,
+      { method: "GET", headers },
+      FETCH_TIMEOUT_MS,
+      fetch,
+      { dispatcherPolicy, auditContext: "openrouter-model-catalog" },
+    );
+    try {
+      if (!response.ok) return null;
+      return response;
+    } catch {
+      await release();
+      return null;
+    }
+    // Note: caller is responsible for consuming the response body.
+    // The guarded fetch release happens after body is consumed via GC.
+  } catch {
+    return null;
+  }
+}
+
+async function fetchModelsFromApi(baseUrl: string, endpoint: string): Promise<string[]> {
+  const response = await fetchGuarded(`${baseUrl}${endpoint}`, baseUrl);
+  if (!response) return [];
+  try {
     const data = (await response.json()) as OpenRouterModelsResponse | OpenRouterModel[];
     const models = Array.isArray(data) ? data : (data.data ?? []);
     return models
@@ -47,8 +81,6 @@ async function fetchModelsFromApi(
       .filter((id): id is string => Boolean(id));
   } catch {
     return [];
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -56,14 +88,9 @@ async function fetchModelsByOutputModality(
   baseUrl: string,
   modality: string,
 ): Promise<string[]> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const response = await fetchGuarded(`${baseUrl}/models`, baseUrl);
+  if (!response) return [];
   try {
-    const response = await fetch(`${baseUrl}/models`, {
-      method: "GET",
-      signal: controller.signal,
-    });
-    if (!response.ok) return [];
     const data = (await response.json()) as OpenRouterModelsResponse;
     return (data.data ?? [])
       .filter((m) => m.architecture?.output_modalities?.includes(modality))
@@ -71,8 +98,6 @@ async function fetchModelsByOutputModality(
       .filter((id): id is string => Boolean(id));
   } catch {
     return [];
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -88,10 +113,12 @@ async function refreshCache(
 }
 
 function getOrRefresh(
-  key: string,
+  baseUrl: string,
+  category: string,
   fetcher: () => Promise<string[]>,
   fallback: readonly string[],
 ): string[] {
+  const key = getCacheKey(baseUrl, category);
   const entry = cache[key];
   if (isStale(entry)) {
     // Fire-and-forget refresh; return current cache or fallback immediately.
@@ -123,6 +150,7 @@ const SPEECH_FALLBACK = [
 
 export function getImageModels(baseUrl: string = OPENROUTER_BASE_URL): string[] {
   return getOrRefresh(
+    baseUrl,
     "image",
     () => fetchModelsByOutputModality(baseUrl, "image"),
     IMAGE_FALLBACK,
@@ -131,15 +159,16 @@ export function getImageModels(baseUrl: string = OPENROUTER_BASE_URL): string[] 
 
 export function getVideoModels(baseUrl: string = OPENROUTER_BASE_URL): string[] {
   return getOrRefresh(
+    baseUrl,
     "video",
-    () => fetchModelsFromApi(baseUrl, "/videos/models", FETCH_TIMEOUT_MS),
+    () => fetchModelsFromApi(baseUrl, "/videos/models"),
     VIDEO_FALLBACK,
   );
 }
 
 export function getMusicModels(baseUrl: string = OPENROUTER_BASE_URL): string[] {
-  // Music models are audio-output models from Google Lyria family.
   return getOrRefresh(
+    baseUrl,
     "music",
     async () => {
       const audioModels = await fetchModelsByOutputModality(baseUrl, "audio");
@@ -150,8 +179,8 @@ export function getMusicModels(baseUrl: string = OPENROUTER_BASE_URL): string[] 
 }
 
 export function getSpeechModels(baseUrl: string = OPENROUTER_BASE_URL): string[] {
-  // Speech models are audio-output models excluding music (Lyria).
   return getOrRefresh(
+    baseUrl,
     "speech",
     async () => {
       const audioModels = await fetchModelsByOutputModality(baseUrl, "audio");
@@ -165,28 +194,30 @@ export function getSpeechModels(baseUrl: string = OPENROUTER_BASE_URL): string[]
 export async function preloadModelCatalog(
   baseUrl: string = OPENROUTER_BASE_URL,
 ): Promise<void> {
-  // Fetch /models once and /videos/models once, populate all caches.
   const [audioModels, imageModels, videoModels] = await Promise.all([
     fetchModelsByOutputModality(baseUrl, "audio"),
     fetchModelsByOutputModality(baseUrl, "image"),
-    fetchModelsFromApi(baseUrl, "/videos/models", FETCH_TIMEOUT_MS),
+    fetchModelsFromApi(baseUrl, "/videos/models"),
   ]);
 
   const now = Date.now();
-  cache.image = { models: imageModels.length > 0 ? imageModels : [...IMAGE_FALLBACK], fetchedAt: now };
-  cache.video = { models: videoModels.length > 0 ? videoModels : [...VIDEO_FALLBACK], fetchedAt: now };
-  cache.music = {
-    models:
-      audioModels.filter((id) => id.includes("lyria")).length > 0
-        ? audioModels.filter((id) => id.includes("lyria"))
-        : [...MUSIC_FALLBACK],
+  const musicModels = audioModels.filter((id) => id.includes("lyria"));
+  const speechModels = audioModels.filter((id) => !id.includes("lyria"));
+
+  cache[getCacheKey(baseUrl, "image")] = {
+    models: imageModels.length > 0 ? imageModels : [...IMAGE_FALLBACK],
     fetchedAt: now,
   };
-  cache.speech = {
-    models:
-      audioModels.filter((id) => !id.includes("lyria")).length > 0
-        ? audioModels.filter((id) => !id.includes("lyria"))
-        : [...SPEECH_FALLBACK],
+  cache[getCacheKey(baseUrl, "video")] = {
+    models: videoModels.length > 0 ? videoModels : [...VIDEO_FALLBACK],
+    fetchedAt: now,
+  };
+  cache[getCacheKey(baseUrl, "music")] = {
+    models: musicModels.length > 0 ? musicModels : [...MUSIC_FALLBACK],
+    fetchedAt: now,
+  };
+  cache[getCacheKey(baseUrl, "speech")] = {
+    models: speechModels.length > 0 ? speechModels : [...SPEECH_FALLBACK],
     fetchedAt: now,
   };
 }
