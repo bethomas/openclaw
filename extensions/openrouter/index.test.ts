@@ -6,8 +6,8 @@ import openrouterPlugin from "./index.js";
 import { buildOpenrouterProvider } from "./provider-catalog.js";
 
 describe("openrouter provider hooks", () => {
-  it("registers OpenRouter speech alongside model and media providers", async () => {
-    const { providers, speechProviders, mediaProviders, imageProviders } =
+  it("registers OpenRouter speech, video, and image alongside model and media providers", async () => {
+    const { providers, speechProviders, mediaProviders, imageProviders, videoProviders } =
       await registerProviderPlugin({
         plugin: openrouterPlugin,
         id: "openrouter",
@@ -18,6 +18,7 @@ describe("openrouter provider hooks", () => {
     expect(speechProviders).toEqual([expect.objectContaining({ id: "openrouter" })]);
     expect(mediaProviders).toEqual([expect.objectContaining({ id: "openrouter" })]);
     expect(imageProviders).toEqual([expect.objectContaining({ id: "openrouter" })]);
+    expect(videoProviders).toEqual([expect.objectContaining({ id: "openrouter" })]);
   });
 
   it("includes Kimi K2.6 in the bundled catalog", () => {

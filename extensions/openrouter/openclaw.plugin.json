@@ -23,7 +23,8 @@
   "contracts": {
     "mediaUnderstandingProviders": ["openrouter"],
     "imageGenerationProviders": ["openrouter"],
-    "speechProviders": ["openrouter"]
+    "speechProviders": ["openrouter"],
+    "videoGenerationProviders": ["openrouter"]
   },
   "mediaUnderstandingProviderMetadata": {
     "openrouter": {

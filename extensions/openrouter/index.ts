@@ -22,6 +22,7 @@ import {
 } from "./provider-catalog.js";
 import { buildOpenRouterSpeechProvider } from "./speech-provider.js";
 import { wrapOpenRouterProviderStream } from "./stream.js";
+import { buildOpenRouterVideoGenerationProvider } from "./video-generation-provider.js";
 
 const PROVIDER_ID = "openrouter";
 const OPENROUTER_DEFAULT_MAX_TOKENS = 8192;
@@ -148,5 +149,6 @@ export default definePluginEntry({
     api.registerMediaUnderstandingProvider(openrouterMediaUnderstandingProvider);
     api.registerImageGenerationProvider(buildOpenRouterImageGenerationProvider());
     api.registerSpeechProvider(buildOpenRouterSpeechProvider());
+    api.registerVideoGenerationProvider(buildOpenRouterVideoGenerationProvider());
   },
 });

@@ -80,6 +80,28 @@ OpenRouter can also back the `image_generate` tool. Use an OpenRouter image mode
 
 OpenClaw sends image requests to OpenRouter's chat completions image API with `modalities: ["image", "text"]`. Gemini image models receive supported `aspectRatio` and `resolution` hints through OpenRouter's `image_config`. Use `agents.defaults.imageGenerationModel.timeoutMs` for slower OpenRouter image models; the `image_generate` tool's per-call `timeoutMs` parameter still wins.
 
+## Video generation
+
+OpenRouter can also back the `video_generate` tool via its `/videos`
+endpoint. Submit a text prompt with optional aspect ratio, resolution,
+duration, and audio flag; a single reference image is supported for
+image-to-video.
+
+```json5
+{
+  agents: {
+    defaults: {
+      videoGenerationModel: {
+        primary: "openrouter/google/veo-3.1",
+      },
+    },
+  },
+}
+```
+
+If `messages.video.providers.openrouter.apiKey` is not set, video generation
+reuses `models.providers.openrouter.apiKey`, then `OPENROUTER_API_KEY`.
+
 ## Text-to-speech
 
 OpenRouter can also be used as a TTS provider through its OpenAI-compatible

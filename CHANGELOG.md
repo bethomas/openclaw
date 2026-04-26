@@ -4,6 +4,10 @@ Docs: https://docs.openclaw.ai
 
 ## Unreleased
 
+### Changes
+
+- Providers/OpenRouter: add an OpenRouter video generation provider using the `/videos` endpoint, covering text-to-video and image-to-video with a single inline reference image, aspect ratio and resolution hints, SSRF-guarded polling URLs, and authenticated or unsigned-CDN download delivery via `OPENROUTER_API_KEY`. Thanks @bethomas.
+
 ### Fixes
 
 - Gateway/Bonjour: keep @homebridge/ciao cancellation handlers registered across advertiser restarts so late probing cancellations cannot crash Linux and other mDNS-churned gateways. Thanks @codex.

@@ -15,11 +15,13 @@ import { openrouterMediaUnderstandingProvider } from "./media-understanding-prov
 import { applyOpenrouterConfig, OPENROUTER_DEFAULT_MODEL_REF } from "./onboard.js";
 import { buildOpenrouterProvider } from "./provider-catalog.js";
 import { buildOpenRouterSpeechProvider } from "./speech-provider.js";
+import { buildOpenRouterVideoGenerationProvider } from "./video-generation-provider.js";
 
 export {
   applyOpenrouterConfig,
   buildOpenrouterProvider,
   buildOpenRouterSpeechProvider,
+  buildOpenRouterVideoGenerationProvider,
   buildProviderReplayFamilyHooks,
   buildProviderStreamFamilyHooks,
   createOpenRouterSystemCacheWrapper,

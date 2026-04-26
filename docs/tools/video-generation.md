@@ -115,6 +115,7 @@ generation.
 | Google                | `veo-3.1-fast-generate-preview` |  ✓   | 1 image                                              | 1 video                                         | `GEMINI_API_KEY`                         |
 | MiniMax               | `MiniMax-Hailuo-2.3`            |  ✓   | 1 image                                              | —                                               | `MINIMAX_API_KEY` or MiniMax OAuth       |
 | OpenAI                | `sora-2`                        |  ✓   | 1 image                                              | 1 video                                         | `OPENAI_API_KEY`                         |
+| OpenRouter            | `google/veo-3.1`                |  ✓   | 1 image                                              | —                                               | `OPENROUTER_API_KEY`                     |
 | Qwen                  | `wan2.6-t2v`                    |  ✓   | Yes (remote URL)                                     | Yes (remote URL)                                | `QWEN_API_KEY`                           |
 | Runway                | `gen4.5`                        |  ✓   | 1 image                                              | 1 video                                         | `RUNWAYML_API_SECRET`                    |
 | Together              | `Wan-AI/Wan2.2-T2V-A14B`        |  ✓   | 1 image                                              | —                                               | `TOGETHER_API_KEY`                       |
@@ -141,6 +142,7 @@ the shared live sweep:
 | Google   |     ✓      |       ✓        |       ✓        | `generate`, `imageToVideo`; shared `videoToVideo` skipped because the current buffer-backed Gemini/Veo sweep does not accept that input  |
 | MiniMax  |     ✓      |       ✓        |       —        | `generate`, `imageToVideo`                                                                                                               |
 | OpenAI   |     ✓      |       ✓        |       ✓        | `generate`, `imageToVideo`; shared `videoToVideo` skipped because this org/input path currently needs provider-side inpaint/remix access |
+| OpenRouter |   ✓      |       ✓        |       —        | `generate`, `imageToVideo`                                                                                                               |
 | Qwen     |     ✓      |       ✓        |       ✓        | `generate`, `imageToVideo`; `videoToVideo` skipped because this provider needs remote `http(s)` video URLs                               |
 | Runway   |     ✓      |       ✓        |       ✓        | `generate`, `imageToVideo`; `videoToVideo` runs only when the selected model is `runway/gen4_aleph`                                      |
 | Together |     ✓      |       ✓        |       —        | `generate`, `imageToVideo`                                                                                                               |
@@ -386,6 +388,16 @@ only the explicit `model`, `primary`, and `fallbacks` entries.
     Only `size` override is forwarded. Other style overrides
     (`aspectRatio`, `resolution`, `audio`, `watermark`) are ignored with
     a warning.
+  </Accordion>
+  <Accordion title="OpenRouter">
+    Routes through OpenRouter's `/videos` endpoint. Supports text-to-video
+    and single-image image-to-video (image is uploaded inline as a base64
+    data URL). Server-returned `polling_url` values are rejected unless
+    they share the configured OpenRouter origin; OpenClaw falls back to
+    the canonical `/videos/{id}` poll path otherwise. Generated output
+    delivered through third-party CDN `unsigned_urls` is fetched without
+    Authorization headers; otherwise OpenClaw downloads from
+    `/videos/{id}/content`.
   </Accordion>
   <Accordion title="Qwen">
     Same DashScope backend as Alibaba. Reference inputs must be remote
